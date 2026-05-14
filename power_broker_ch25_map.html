@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Power Broker — Chapter 25: Changing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink: #1a1208;
+    --parchment: #f0e8d5;
+    --parchment-dark: #e0d4b8;
+    --amber: #c8860a;
+    --red: #9b2218;
+    --blue: #1a3d6b;
+    --green: #2a6b3a;
+    --teal: #1b6b6b;
+    --purple: #5a2d6b;
+    --border: #b8a882;
+  }
+
+  html, body { height: 100%; font-family: 'Crimson Text', serif; background: var(--ink); }
+
+  .wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--ink);
+    border-bottom: 2px solid var(--amber);
+    padding: 14px 28px;
+    display: flex;
+    align-items: baseline;
+    gap: 20px;
+    flex-shrink: 0;
+  }
+  .header-eyebrow {
+    font-family: 'Crimson Text', serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--amber);
+  }
+  .header-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--parchment);
+    line-height: 1;
+  }
+  .header-sub {
+    font-family: 'Playfair Display', serif;
+    font-size: 14px;
+    font-style: italic;
+    color: #9a8e78;
+    margin-left: auto;
+  }
+
+  /* ── MAP ── */
+  #map {
+    flex: 1;
+    position: relative;
+  }
+
+  /* ── LEGEND ── */
+  .legend {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 1000;
+    background: rgba(26, 18, 8, 0.93);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 18px 20px;
+    min-width: 260px;
+    max-width: 300px;
+    backdrop-filter: blur(6px);
+  }
+  .legend-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--amber);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .legend-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    opacity: 0.9;
+    transition: opacity 0.2s;
+  }
+  .legend-item:hover { opacity: 1; }
+  .legend-item.muted { opacity: 0.35; }
+  .legend-swatch {
+    width: 28px;
+    height: 4px;
+    border-radius: 2px;
+    margin-top: 9px;
+    flex-shrink: 0;
+  }
+  .legend-swatch.dashed {
+    background: repeating-linear-gradient(90deg, currentColor 0, currentColor 5px, transparent 5px, transparent 9px);
+  }
+  .legend-swatch.dotted {
+    background: repeating-linear-gradient(90deg, currentColor 0, currentColor 3px, transparent 3px, transparent 7px);
+  }
+  .legend-label { color: var(--parchment); font-size: 13.5px; line-height: 1.35; }
+  .legend-label small { display: block; color: #9a8e78; font-size: 11.5px; font-style: italic; }
+
+  .legend-divider {
+    border: none;
+    border-top: 1px solid #3a3020;
+    margin: 12px 0;
+  }
+
+  .legend-point-item {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    margin-bottom: 10px;
+  }
+  .legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.25);
+    flex-shrink: 0;
+  }
+
+  /* ── CAPTION ── */
+  .caption {
+    position: absolute;
+    bottom: 30px;
+    left: 16px;
+    z-index: 1000;
+    background: rgba(26, 18, 8, 0.88);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 12px 16px;
+    max-width: 320px;
+    backdrop-filter: blur(4px);
+  }
+  .caption p {
+    color: #c8bfa8;
+    font-size: 12.5px;
+    font-style: italic;
+    line-height: 1.55;
+  }
+  .caption strong { color: var(--amber); font-style: normal; }
+
+  /* ── LEAFLET OVERRIDES ── */
+  .leaflet-container { background: #1a1208; cursor: crosshair; }
+  .leaflet-control-zoom a { background: #1a1208 !important; color: var(--amber) !important; border-color: var(--border) !important; }
+  .leaflet-control-attribution { background: rgba(26,18,8,0.75) !important; color: #6a5e48 !important; font-size: 10px; }
+  .leaflet-control-attribution a { color: #8a7e68 !important; }
+
+  /* Custom tooltip */
+  .leaflet-tooltip {
+    background: var(--ink) !important;
+    border: 1px solid var(--amber) !important;
+    border-radius: 2px !important;
+    color: var(--parchment) !important;
+    font-family: 'Crimson Text', serif !important;
+    font-size: 13px !important;
+    padding: 6px 10px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5) !important;
+  }
+  .leaflet-tooltip::before { border-top-color: var(--amber) !important; }
+  .tt-title { font-family: 'Playfair Display', serif; font-weight: 700; color: var(--amber); font-size: 13px; display: block; }
+  .tt-body { color: #c8bfa8; font-style: italic; font-size: 12px; display: block; margin-top: 3px; max-width: 200px; line-height: 1.4; }
+
+  /* Popup */
+  .leaflet-popup-content-wrapper {
+    background: var(--ink) !important;
+    border: 1px solid var(--amber) !important;
+    border-radius: 2px !important;
+    color: var(--parchment) !important;
+    font-family: 'Crimson Text', serif !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.6) !important;
+  }
+  .leaflet-popup-tip { background: var(--ink) !important; }
+  .leaflet-popup-close-button { color: var(--amber) !important; }
+  .popup-title { font-family: 'Playfair Display', serif; font-size: 15px; font-weight: 700; color: var(--amber); margin-bottom: 6px; }
+  .popup-body { font-size: 13px; color: #c8bfa8; line-height: 1.55; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <div class="header">
+    <div>
+      <div class="header-eyebrow">Robert A. Caro · The Power Broker</div>
+      <div class="header-title">Chapter 25 — <em style="font-weight:400">Changing</em></div>
+    </div>
+    <div class="header-sub">Moses' Infrastructure Projects, Greater New York · 1934–1938</div>
+  </div>
+
+  <div id="map">
+
+    <div class="legend">
+      <div class="legend-title">Map Key</div>
+
+      <div class="legend-item" id="leg-wshe" onclick="toggleLayer('wshe', this)">
+        <div class="legend-swatch" style="background:#c8860a; height:4px;"></div>
+        <div class="legend-label">West Side Elevated Highway
+          <small>Extension: 72nd St → Tip of Manhattan</small>
+        </div>
+      </div>
+
+      <div class="legend-item" id="leg-rp" onclick="toggleLayer('rp', this)">
+        <div class="legend-swatch" style="background:#2a6b3a; height:6px; border-radius:3px;"></div>
+        <div class="legend-label">Riverside Park
+          <small>Six-mile transformation & Great Lawn</small>
+        </div>
+      </div>
+
+      <div class="legend-item" id="leg-hhb" onclick="toggleLayer('hhb', this)">
+        <div class="legend-swatch" style="background:#9b2218; height:4px;"></div>
+        <div class="legend-label">Henry Hudson Bridge
+          <small>Span across Harlem River Ship Canal</small>
+        </div>
+      </div>
+
+      <div class="legend-item" id="leg-bx" onclick="toggleLayer('bx', this)">
+        <div class="legend-swatch" style="background:#9b2218; height:3px; background: repeating-linear-gradient(90deg,#9b2218 0,#9b2218 7px,transparent 7px,transparent 12px);"></div>
+        <div class="legend-label">Bronx Extension
+          <small>Bridge → Saw Mill River Pkwy (city line)</small>
+        </div>
+      </div>
+
+      <hr class="legend-divider">
+
+      <div class="legend-item" id="leg-tri" onclick="toggleLayer('tri', this)">
+        <div class="legend-swatch" style="background:#1a3d6b; height:4px;"></div>
+        <div class="legend-label">Triborough Bridge
+          <small>Manhattan · Queens · Bronx</small>
+        </div>
+      </div>
+
+      <div class="legend-item" id="leg-mp" onclick="toggleLayer('mp', this)">
+        <div class="legend-swatch" style="background:#1b6b6b; height:4px;"></div>
+        <div class="legend-label">Marine Parkway Bridge
+          <small>Rockaway Peninsula ↔ Brooklyn</small>
+        </div>
+      </div>
+
+      <div class="legend-item" id="leg-belt" onclick="toggleLayer('belt', this)">
+        <div class="legend-swatch" style="background:#5a2d6b; height:4px; background: repeating-linear-gradient(90deg,#5a2d6b 0,#5a2d6b 6px,transparent 6px,transparent 10px);"></div>
+        <div class="legend-label">Belt Parkway
+          <small>Southern Brooklyn corridor</small>
+        </div>
+      </div>
+
+      <hr class="legend-divider">
+      <div style="color:#7a6e58; font-size:11px; font-style:italic;">Click legend items to show/hide layers.<br>Click map features for details.</div>
+    </div>
+
+    <div class="caption">
+      <p><strong>Robert Moses</strong> orchestrated this vast reshaping of New York's infrastructure in under four years — highways, parks, and bridges that would define the city for generations.</p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── MAP INIT ──
+const map = L.map('map', {
+  center: [40.76, -73.97],
+  zoom: 12,
+  zoomControl: true,
+});
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/">CARTO</a>',
+  subdomains: 'abcd',
+  maxZoom: 19
+}).addTo(map);
+
+// ── LAYER REGISTRY ──
+const layers = {};
+
+function tt(title, body) {
+  return `<span class="tt-title">${title}</span><span class="tt-body">${body}</span>`;
+}
+
+// ── 1. WEST SIDE ELEVATED HIGHWAY (Amber) ──
+const wsheCoords = [
+  [40.7767, -73.9898], // 72nd St
+  [40.7833, -73.9925], // 79th St
+  [40.7905, -73.9955], // 86th St
+  [40.7973, -73.9980], // 96th St
+  [40.8060, -74.0010], // 105th St
+  [40.8133, -74.0038], // 115th St
+  [40.8192, -74.0060], // 125th St area
+  [40.8270, -73.9550], // river curves - 145th area
+  [40.8336, -73.9423], // 155th St
+  [40.8440, -73.9370], // 165th St
+  [40.8517, -73.9334], // 181st St / GWB level
+  [40.8590, -73.9295], // 190th St / Fort Tryon
+  [40.8677, -73.9261], // Tip of Manhattan - Inwood
+];
+
+layers.wshe = L.polyline(wsheCoords, {
+  color: '#c8860a',
+  weight: 4,
+  opacity: 0.9,
+  lineJoin: 'round',
+}).addTo(map)
+.bindTooltip(tt('West Side Elevated Highway', 'Extension from 72nd Street northward to the tip of Manhattan, running along the Hudson shore.'), { sticky: true })
+.bindPopup(`<div class="popup-title">West Side Elevated Highway</div><div class="popup-body">Moses extended the highway north from 72nd Street all the way to the tip of Manhattan. The project required building over rail yards and transforming the derelict waterfront into an integrated traffic corridor tied to the new Riverside Park.</div>`, { maxWidth: 260 });
+
+// Start/end markers
+L.circleMarker([40.7767, -73.9898], { radius: 6, fillColor: '#c8860a', color: '#f0e8d5', weight: 1.5, fillOpacity: 1 })
+  .addTo(map)
+  .bindTooltip(tt('72nd Street', 'Southern terminus of the highway extension'), { sticky: true });
+
+L.circleMarker([40.8677, -73.9261], { radius: 6, fillColor: '#c8860a', color: '#f0e8d5', weight: 1.5, fillOpacity: 1 })
+  .addTo(map)
+  .bindTooltip(tt('Inwood — Tip of Manhattan', 'Northern terminus connecting to the Henry Hudson Bridge approach'), { sticky: true });
+
+// ── 2. RIVERSIDE PARK (Green) ──
+const rpCoords = [
+  [40.7767, -73.9891], // 72nd St
+  [40.7843, -73.9910],
+  [40.7920, -73.9940],
+  [40.7990, -73.9968],
+  [40.8060, -73.9998],
+  [40.8130, -74.0025],
+  [40.8200, -74.0048],
+  [40.8270, -73.9520], // river curve near 145th
+  [40.8336, -73.9413], // 158th St
+];
+
+layers.rp = L.polyline(rpCoords, {
+  color: '#2a6b3a',
+  weight: 9,
+  opacity: 0.55,
+  lineJoin: 'round',
+}).addTo(map)
+.bindTooltip(tt('Riverside Park', 'Six-mile transformation from neglected wasteland into landscaped park and Great Lawn.'), { sticky: true })
+.bindPopup(`<div class="popup-title">Riverside Park</div><div class="popup-body">Moses transformed the six-mile stretch of decaying waterfront along Riverside Drive into a grand park. The Hudson River rail yards were buried beneath fill, creating the "Great Lawn" — a vast expanse of usable green space that had not existed before.</div>`, { maxWidth: 260 });
+
+// ── 3. HENRY HUDSON BRIDGE (Red) ──
+const hhbCoords = [
+  [40.8720, -73.9245], // Manhattan approach (Inwood / Dyckman)
+  [40.8755, -73.9180], // mid-span
+  [40.8787, -73.9117], // Bronx/Spuyten Duyvil side
+];
+
+layers.hhb = L.polyline(hhbCoords, {
+  color: '#9b2218',
+  weight: 5,
+  opacity: 1,
+  lineJoin: 'round',
+}).addTo(map)
+.bindTooltip(tt('Henry Hudson Bridge', 'Arch bridge spanning the Harlem River Ship Canal at Spuyten Duyvil.'), { sticky: true })
+.bindPopup(`<div class="popup-title">Henry Hudson Bridge</div><div class="popup-body">An elegant two-lane arch bridge spanning the Harlem River Ship Canal between Manhattan's Inwood neighborhood and Spuyten Duyvil in the Bronx. It formed the critical link between the West Side highway system and the Bronx parkway network.</div>`, { maxWidth: 260 });
+
+L.circleMarker([40.8787, -73.9117], { radius: 8, fillColor: '#9b2218', color: '#f0e8d5', weight: 2, fillOpacity: 1 })
+  .addTo(map)
+  .bindTooltip(tt('Henry Hudson Bridge', 'Harlem River Ship Canal crossing'), { sticky: true });
+
+// ── 4. BRONX EXTENSION (Red dashed) ──
+const bxCoords = [
+  [40.8787, -73.9117], // Bridge / Spuyten Duyvil
+  [40.8840, -73.9020],
+  [40.8900, -73.8930],
+  [40.8970, -73.8850],
+  [40.9040, -73.8790],
+  [40.9100, -73.8740], // Saw Mill River Pkwy / city line
+];
+
+layers.bx = L.polyline(bxCoords, {
+  color: '#9b2218',
+  weight: 3.5,
+  opacity: 0.9,
+  dashArray: '10, 6',
+  lineJoin: 'round',
+}).addTo(map)
+.bindTooltip(tt('Bronx Extension', 'Henry Hudson Parkway route north through the Bronx to the Saw Mill River Parkway at the city line.'), { sticky: true })
+.bindPopup(`<div class="popup-title">Bronx Extension</div><div class="popup-body">The extension carried the Henry Hudson Parkway north through the Bronx, linking the new bridge to the Saw Mill River Parkway at the Westchester county line — completing Moses' vision of a seamless parkway system from lower Manhattan into the suburbs.</div>`, { maxWidth: 260 });
+
+L.circleMarker([40.9100, -73.8740], { radius: 6, fillColor: '#9b2218', color: '#f0e8d5', weight: 1.5, fillOpacity: 1 })
+  .addTo(map)
+  .bindTooltip(tt('City Line / Saw Mill River Pkwy', 'Connection to Westchester County parkway network'), { sticky: true });
+
+// ── 5. TRIBOROUGH BRIDGE (Blue) ──
+// Three spans: Manhattan (125th), Randall's Island, Queens, Bronx
+const triManhattan = [
+  [40.7960, -73.9330], // 125th St Manhattan approach
+  [40.7920, -73.9268], // crossing to Randall's Island
+  [40.7890, -73.9215], // Randall's Island
+];
+const triQueens = [
+  [40.7890, -73.9215], // Randall's Island
+  [40.7850, -73.9158],
+  [40.7790, -73.9065], // Queens / Astoria approach
+];
+const triBronx = [
+  [40.7890, -73.9215], // Randall's Island
+  [40.7950, -73.9170],
+  [40.8010, -73.9280], // Bronx approach
+];
+
+const triGroup = L.layerGroup([
+  L.polyline(triManhattan, { color: '#1a3d6b', weight: 5, opacity: 0.9 })
+    .bindTooltip(tt('Triborough Bridge', 'Manhattan span — 125th Street approach'), { sticky: true }),
+  L.polyline(triQueens, { color: '#1a3d6b', weight: 5, opacity: 0.9 })
+    .bindTooltip(tt('Triborough Bridge', 'Queens / Astoria span'), { sticky: true }),
+  L.polyline(triBronx, { color: '#1a3d6b', weight: 5, opacity: 0.9 })
+    .bindTooltip(tt('Triborough Bridge', 'Bronx span'), { sticky: true }),
+  L.circleMarker([40.7890, -73.9215], { radius: 7, fillColor: '#1a3d6b', color: '#f0e8d5', weight: 2, fillOpacity: 1 })
+    .bindTooltip(tt("Triborough Bridge — Randall's Island", "Hub connecting all three spans"), { sticky: true })
+    .bindPopup(`<div class="popup-title">Triborough Bridge</div><div class="popup-body">Moses' flagship project: a massive three-span bridge connecting Manhattan (125th Street), Queens (Astoria), and the Bronx via Randall's Island. It became the financial engine of Moses' empire — toll revenues funded his future projects.</div>`, { maxWidth: 260 }),
+]);
+triGroup.addTo(map);
+layers.tri = triGroup;
+
+// ── 6. MARINE PARKWAY BRIDGE (Teal) ──
+const mpCoords = [
+  [40.6020, -73.8330], // Floyd Bennett Field / Brooklyn side
+  [40.5950, -73.8380],
+  [40.5890, -73.8440], // Rockaway Peninsula side
+];
+
+layers.mp = L.polyline(mpCoords, {
+  color: '#1b6b6b',
+  weight: 5,
+  opacity: 0.9,
+}).addTo(map)
+.bindTooltip(tt('Marine Parkway Bridge', 'Connecting Rockaway Peninsula to Floyd Bennett Field, Brooklyn.'), { sticky: true })
+.bindPopup(`<div class="popup-title">Marine Parkway Bridge</div><div class="popup-body">A bascule bridge connecting the Rockaway Peninsula to the Brooklyn mainland at Floyd Bennett Field, opening the Rockaways' beaches to the urban public — a central piece of Moses' vision for public recreational access.</div>`, { maxWidth: 260 });
+
+L.circleMarker([40.5890, -73.8440], { radius: 7, fillColor: '#1b6b6b', color: '#f0e8d5', weight: 2, fillOpacity: 1 })
+  .addTo(map)
+  .bindTooltip(tt('Marine Parkway Bridge', 'Rockaway Peninsula terminus'), { sticky: true });
+
+// ── 7. BELT PARKWAY (Purple dashed) ──
+const beltCoords = [
+  [40.6330, -74.0340], // Bay Ridge / Gowanus Expwy junction
+  [40.6250, -74.0180], // Fort Hamilton area
+  [40.6170, -73.9900], // Dyker Beach
+  [40.6100, -73.9650], // Bensonhurst
+  [40.6060, -73.9360], // Gravesend / Coney Island area
+  [40.5990, -73.9100], // Sheepshead Bay
+  [40.5920, -73.8810], // Plumb Beach
+  [40.5875, -73.8600], // near Marine Pkwy junction
+  [40.5940, -73.8300], // crossing toward JFK corridor
+  [40.6180, -73.8000], // Spring Creek
+  [40.6500, -73.7760], // Howard Beach / JFK approach
+  [40.6620, -73.7600], // JFK edge
+];
+
+layers.belt = L.polyline(beltCoords, {
+  color: '#5a2d6b',
+  weight: 3.5,
+  opacity: 0.85,
+  dashArray: '8, 5',
+  lineJoin: 'round',
+}).addTo(map)
+.bindTooltip(tt('Belt Parkway', 'Southern Brooklyn coastal corridor, connecting the bridge and parkway network to the eastern shoreline.'), { sticky: true })
+.bindPopup(`<div class="popup-title">Belt Parkway</div><div class="popup-body">A scenic limited-access highway running along the southern shore of Brooklyn, connecting the borough's parkways, beaches, and bridges into a unified system. It was part of Moses' grand design to bring New Yorkers to the waterfront.</div>`, { maxWidth: 260 });
+
+// ── TOGGLE FUNCTION ──
+function toggleLayer(key, el) {
+  const layer = layers[key];
+  if (!layer) return;
+  if (map.hasLayer(layer)) {
+    map.removeLayer(layer);
+    el.classList.add('muted');
+  } else {
+    map.addLayer(layer);
+    el.classList.remove('muted');
+  }
+}
+
+// ── FIT BOUNDS ──
+const allPoints = [
+  ...wsheCoords, ...rpCoords, ...hhbCoords, ...bxCoords,
+  ...triManhattan, ...triQueens, ...triBronx,
+  ...mpCoords, ...beltCoords
+];
+const bounds = L.latLngBounds(allPoints);
+map.fitBounds(bounds, { padding: [60, 60] });
+</script>
+</body>
+</html>
